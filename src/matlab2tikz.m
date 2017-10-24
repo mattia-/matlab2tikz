@@ -102,6 +102,16 @@ function matlab2tikz(varargin)
     %   MATLAB2TIKZ('arrowHeadSize', FLOAT, ...) allows to resize the arrow heads
     %   in quiver plots by rescaling the arrow heads by a positive scalar. (default: 10)
     %
+    %   MATLAB2TIKZ('arrowHeadAngle', FLOAT, ...) allows to choose the opening angle for
+    %   the arrow heads in quiver plots. If negative, it is not used. (default: -1)
+    %
+    %   MATLAB2TIKZ('arrowHeadScaleLowerBound', FLOAT, ...) lower bound to be used when
+    %   the scale option is applied to arrow heads (to avoid scale = 0, which is
+    %   problematic). (default: 1e-4)
+    %
+    %   MATLAB2TIKZ('arrowHeadStyle', CHAR, ...) allows to change the arrow heads
+    %   style in quiver plots. (default: 'Straight Barb')
+
     %   MATLAB2TIKZ('tikzFileComment',CHAR,...) adds a custom comment to the header
     %   of the output file. (default: '')
     %
@@ -212,6 +222,9 @@ function matlab2tikz(varargin)
     ipp = ipp.addParamValue(ipp, 'relativeDataPath', '', @ischar);
     ipp = ipp.addParamValue(ipp, 'noSize', false, @islogical);
     ipp = ipp.addParamValue(ipp, 'arrowHeadSize', 10, @(x) x>0);
+    ipp = ipp.addParamValue(ipp, 'arrowHeadAngle', -1, @isnumeric);
+    ipp = ipp.addParamValue(ipp, 'arrowHeadScaleLowerBound', 1e-4, @(x) x>0);
+    ipp = ipp.addParamValue(ipp, 'arrowHeadStyle', 'Straight Barb', @ischar);
 
     % Maximum chunk length.
     % TeX parses files line by line with a buffer of size buf_size. If the
@@ -3715,7 +3728,7 @@ function [m2t, str] = drawScatterPlot(m2t, h)
 
         if numel(dataInfo.Size) == 1
             drawOptions = opts_add(drawOptions, 'mark size', ...
-                sprintf('%.4fpt', dataInfo.Size)); % FIXME: investigate whether to use `m2t.ff` 
+                sprintf('%.4fpt', dataInfo.Size)); % FIXME: investigate whether to use `m2t.ff`
         else
             %TODO: warn the user about this. It is not currently supported.
         end
@@ -4279,7 +4292,7 @@ function [m2t, str] = drawQuiverGroup(m2t, h)
         % In 3D, the angle is no longer constant but it is approximately
         % the same as for 2D quiver plots. So let's make our life easy.
         % |test/examples/example_quivers.m| covers the calculations.
-        arrowHeadOptions = opts_add(arrowHeadOptions, 'angle''', '18.263');
+        % arrowHeadOptions = opts_add(arrowHeadOptions, 'angle''', '18.263');
 
         %TODO: scale the arrows more rigorously to match MATLAB behavior
         % Currently, this is quite hard to do, since the size of the arrows
@@ -4299,16 +4312,28 @@ function [m2t, str] = drawQuiverGroup(m2t, h)
 
         userInfo(m2t, ['Please change the "arrowHeadSize" option', ...
             ' if the size of the arrows is incorrect.']);
+        userInfo(m2t, ['Please notice that output Tikz file may not compile', ...
+            ' for certain combination of values\nof "arrowHeadAngle,"', ...
+            ' "arrowHeadScaleLowerBound" and "arrowHeadStyle". If you', ...
+            ' get an error\nlike "Dimension too large" or "Cannot divide by 0",', ...
+            ' it may be due to an unfortunate choice\nfor these parameters.']);
         arrowHeadSize = sprintf(m2t.ff, abs(m2t.args.arrowHeadSize));
+        arrowHeadAngle = sprintf(m2t.ff, abs(m2t.args.arrowHeadAngle));
+        arrowHeadScaleLowerBound = sprintf(m2t.ff, abs(m2t.args.arrowHeadScaleLowerBound));
+        arrowHeadStyle = m2t.args.arrowHeadStyle;
 
         % Write out the actual scaling for TikZ.
         % `\pgfplotspointsmetatransformed` is in the range [0, 1000], so
         % divide by this span (as is done in the pgfplots manual) to normalize
         % the arrow head size. First divide to avoid overflows.
+        if m2t.args.arrowHeadAngle > 0
+            arrowHeadOptions = opts_add(arrowHeadOptions, 'angle''', num2str(arrowHeadAngle));
+        end
         arrowHeadOptions = opts_add(arrowHeadOptions, 'scale', ...
-            ['{' arrowHeadSize '/1000*\pgfplotspointmetatransformed}']);
+            ['{max(', arrowHeadScaleLowerBound, ', ', ...
+             arrowHeadSize '/1000*\pgfplotspointmetatransformed)}']);
 
-        headStyle = ['-{Straight Barb[' opts_print(arrowHeadOptions) ']}'];
+        headStyle = ['-{' arrowHeadStyle, '[' opts_print(arrowHeadOptions) ']}'];
         quiverOptions = opts_add(quiverOptions, 'every arrow/.append style', ...
                                  ['{' headStyle '}']);
     end
@@ -4833,11 +4858,11 @@ function [cbarTemplate, cbarStyleOptions] = getColorbarPosOptions(handle, cbarSt
             end
 
             % Using positions relative to associated axes
-            calcRelPos = @(pos1,pos2,ext2) (pos1-pos2)/ext2; 
+            calcRelPos = @(pos1,pos2,ext2) (pos1-pos2)/ext2;
             cbarRelPosX = calcRelPos(cbarDim.left,cbarAxesDim.left,cbarAxesDim.width);
             cbarRelPosY = calcRelPos(cbarDim.bottom,cbarAxesDim.bottom,cbarAxesDim.height);
             cbarRelHeight = cbarDim.height/cbarAxesDim.height;
-            
+
             cbarStyleOptions = opts_add(cbarStyleOptions, 'anchor',...
                 'south west');
             cbarStyleOptions = opts_add(cbarStyleOptions, 'at',...
