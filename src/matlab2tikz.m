@@ -111,7 +111,14 @@ function matlab2tikz(varargin)
     %
     %   MATLAB2TIKZ('arrowHeadStyle', CHAR, ...) allows to change the arrow heads
     %   style in quiver plots. (default: 'Straight Barb')
-
+    %
+    %   MATLAB2TIKZ('scaleArrowHeads', BOOL, ...) determines whether to scale arrow
+    %   heads. (default: true)
+    %
+    %   MATLAB2TIKZ('arrowHeadSizeIsRelative', BOOL, ...) determines whether the scale
+    %   factor for the arrow head is relative to \pgfplotspointmetatransformed or not.
+    %   (default: true)
+    %
     %   MATLAB2TIKZ('tikzFileComment',CHAR,...) adds a custom comment to the header
     %   of the output file. (default: '')
     %
@@ -225,6 +232,8 @@ function matlab2tikz(varargin)
     ipp = ipp.addParamValue(ipp, 'arrowHeadAngle', -1, @isnumeric);
     ipp = ipp.addParamValue(ipp, 'arrowHeadScaleLowerBound', 1e-4, @(x) x>0);
     ipp = ipp.addParamValue(ipp, 'arrowHeadStyle', 'Straight Barb', @ischar);
+    ipp = ipp.addParamValue(ipp, 'scaleArrowHeads', true, @islogical);
+    ipp = ipp.addParamValue(ipp, 'arrowHeadSizeIsRelative', true, @islogical);
 
     % Maximum chunk length.
     % TeX parses files line by line with a buffer of size buf_size. If the
@@ -4266,7 +4275,8 @@ function [m2t, str] = drawQuiverGroup(m2t, h)
 
     plotOptions = opts_new();
     if showArrowHead
-        plotOptions = opts_add(plotOptions, '-Straight Barb');
+        arrowHeadStyle = m2t.args.arrowHeadStyle;
+        plotOptions = opts_add(plotOptions, ['-', arrowHeadStyle]);
         signalDependency(m2t, 'tikzlibrary', 'arrows.meta');
     else
         plotOptions = opts_add(plotOptions, '-');
@@ -4329,7 +4339,6 @@ function [m2t, str] = drawQuiverGroup(m2t, h)
         arrowHeadSize = sprintf(m2t.ff, abs(m2t.args.arrowHeadSize));
         arrowHeadAngle = sprintf(m2t.ff, abs(m2t.args.arrowHeadAngle));
         arrowHeadScaleLowerBound = sprintf(m2t.ff, abs(m2t.args.arrowHeadScaleLowerBound));
-        arrowHeadStyle = m2t.args.arrowHeadStyle;
 
         % Write out the actual scaling for TikZ.
         % `\pgfplotspointsmetatransformed` is in the range [0, 1000], so
@@ -4338,13 +4347,21 @@ function [m2t, str] = drawQuiverGroup(m2t, h)
         if m2t.args.arrowHeadAngle > 0
             arrowHeadOptions = opts_add(arrowHeadOptions, 'angle''', num2str(arrowHeadAngle));
         end
-        arrowHeadOptions = opts_add(arrowHeadOptions, 'scale', ...
-            ['{max(', arrowHeadScaleLowerBound, ', ', ...
-             arrowHeadSize '/1000*\pgfplotspointmetatransformed)}']);
+
+        if m2t.args.arrowHeadSizeIsRelative
+            arrowHeadOptions = opts_add(arrowHeadOptions, 'scale', ...
+                ['{max(', arrowHeadScaleLowerBound, ', ', ...
+                arrowHeadSize '/1000*\pgfplotspointmetatransformed)}']);
+        else
+             arrowHeadOptions = opts_add(arrowHeadOptions, 'scale', arrowHeadSize);
+        end
 
         headStyle = ['-{' arrowHeadStyle, '[' opts_print(arrowHeadOptions) ']}'];
-        quiverOptions = opts_add(quiverOptions, 'every arrow/.append style', ...
-                                 ['{' headStyle '}']);
+
+        if m2t.args.scaleArrowHeads
+            quiverOptions = opts_add(quiverOptions, 'every arrow/.append style', ...
+                ['{' headStyle '}']);
+        end
     end
     plotOptions = opts_addSubOpts(plotOptions, 'quiver', quiverOptions);
 
