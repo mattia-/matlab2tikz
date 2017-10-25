@@ -1079,15 +1079,9 @@ function legendhandle = getAssociatedLegend(m2t, axisHandle)
             % causes the legend to appear even if no legend was set. To fix
             % this, check whether legend is a property of the axis object
             % or not
-            if isprop(axisHandle, 'legend') % new behaviour
-                % get legend handle via legend() function only if legend is
-                % not empty
-                if isempty(axisHandle.Legend)
-                    legendhandle = [];
-                else
-                    legendhandle = legend ();
-                end
-            else % old behaviour
+            if isprop(axisHandle, 'legend') % new behaviour for r2017b
+                legendhandle = axisHandle.Legend;
+            else % fall back to old behaviour
             	legendhandle = legend(axisHandle);
             end
     end
