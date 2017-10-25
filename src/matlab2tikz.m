@@ -119,6 +119,13 @@ function matlab2tikz(varargin)
     %   factor for the arrow head is relative to \pgfplotspointmetatransformed or not.
     %   (default: true)
     %
+    %   MATLAB2TIKZ('aspectRatio', FLOAT, ...) the ratio height/width for the figure.
+    %   (default: 1)
+    %
+    %   MATLAB2TIKZ('keepAspectRatio', BOOL, ...) determines whether to keep aspect ratio
+    %   value, given by parameter 'aspectRatio'.
+    %   (default: true)
+    %
     %   MATLAB2TIKZ('tikzFileComment',CHAR,...) adds a custom comment to the header
     %   of the output file. (default: '')
     %
@@ -234,6 +241,8 @@ function matlab2tikz(varargin)
     ipp = ipp.addParamValue(ipp, 'arrowHeadStyle', 'Straight Barb', @ischar);
     ipp = ipp.addParamValue(ipp, 'scaleArrowHeads', true, @islogical);
     ipp = ipp.addParamValue(ipp, 'arrowHeadSizeIsRelative', true, @islogical);
+    ipp = ipp.addParamValue(ipp, 'aspectRatio', 1, @(x) x>0);
+    ipp = ipp.addParamValue(ipp, 'keepAspectRatio', true, @islogical);
 
     % Maximum chunk length.
     % TeX parses files line by line with a buffer of size buf_size. If the
@@ -5653,6 +5662,14 @@ function position = getAxesPosition(m2t, handle, widthString, heightString, axes
     position.w.unit  = figDim.x.unit;
     position.h.value = relPos(4) * figDim.y.value;
     position.h.unit  = figDim.y.unit;
+
+    if m2t.args.keepAspectRatio
+        if position.w.value < position.h.value
+            position.h.value = position.w.value * m2t.args.aspectRatio;
+        else
+            position.w.value = position.h.value * m2t.args.aspectRatio;
+        end
+    end
 end
 % ==============================================================================
 function [position] = getRelativeAxesPosition(m2t, axesHandles, axesBoundingBox)
