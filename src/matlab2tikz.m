@@ -1074,7 +1074,22 @@ function legendhandle = getAssociatedLegend(m2t, axisHandle)
                 end
             end
         case 'MATLAB'
-            legendhandle = legend(axisHandle);
+            % NOTE: legend handling changed in MATLAB version R2017b (and
+            % maybe even sooner), so that calling legend on the axis handle
+            % causes the legend to appear even if no legend was set. To fix
+            % this, check whether legend is a property of the axis object
+            % or not
+            if isprop(axisHandle, 'legend') % new behaviour
+                % get legend handle via legend() function only if legend is
+                % not empty
+                if isempty(axisHandle.Legend)
+                    legendhandle = [];
+                else
+                    legendhandle = legend ();
+                end
+            else % old behaviour
+            	legendhandle = legend(axisHandle);
+            end
     end
 
     % NOTE: there is a BUG in HG1 and Octave. Setting the box off sets the
